@@ -189,11 +189,10 @@ of the component name */
 	endtime     = time(NULL);
 
 	for ( i = 0; i < tnode->ntbuf && seis < (SACWORD *)outbufend; i++ ) {
-		tankbyte = (uint8_t *)tankstart + tnode->tlist[i].offset;
-		trh2     = (TRACE2_HEADER *)tankbyte;
-
-		starttime       = trh2->starttime;
-		samprate        = trh2->samprate;
+		tankbyte  = (uint8_t *)tankstart + tnode->tlist[i].offset;
+		trh2      = (TRACE2_HEADER *)tankbyte;
+		starttime = trh2->starttime;
+		samprate  = trh2->samprate;
 
 		if ( i > 0 ) {
 		/* Starttime is set for new packet; endtime is still set for old packet */
@@ -227,8 +226,8 @@ of the component name */
 		}
 
 		int32_t   *idata           = (int32_t *)(trh2 + 1);
-		const int  byte_per_sample = trh2->datatype[0];         /* For TYPE_TRACEBUF2 msg                */
-		const char byte_order      = atoi(&trh2->datatype[1]);  /* Byte order of this TYPE_TRACEBUF2 msg */
+		const int  byte_order      = trh2->datatype[0];         /* For TYPE_TRACEBUF2 msg                */
+		const char byte_per_sample = atoi(&trh2->datatype[1]);  /* Byte order of this TYPE_TRACEBUF2 msg */
 
 		if ( byte_order == 'i' || byte_order == 's' ) {
 			if ( byte_per_sample == 4 ) {
@@ -242,7 +241,7 @@ of the component name */
 			}
 			else continue;
 		}
-		else if ( byte_order == 'f' || byte_order == 't' ){
+		else if ( byte_order == 'f' || byte_order == 't' ) {
 		/* Following would not work now... */
 			if ( byte_per_sample == 4 ) {
 				float *fdata = (float *)fdata;
