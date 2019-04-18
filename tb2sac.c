@@ -12,7 +12,6 @@
 #include <sachead.h>
 #include <trace_buf.h>
 #include <swap.h>
-
 #include <tb2sac.h>
 
 #define VERSION         "0.0.1 - 2019-04-15"
@@ -65,14 +64,16 @@ int main( int argc, char *argv[] )
 /* For future function... */
 	sprintf(OutFormat, "SAC");
 
-/* Create the output directory */
+/* Create the output directory
+******************************/
 	sprintf(OutDir, "%s_%s", argv[1], OutFormat);
 /* Replace the '.' in the file name to '_' */
-	for ( i = 0; i < (int)strlen(OutDir); i++ )
+	i = strrchr(OutDir, '/') - OutDir;
+	for ( ; i < (int)strlen(OutDir); i++ )
 		if ( OutDir[i] == '.' ) OutDir[i] = '_';
 /* Check if the directory is existing or not */
 	if ( stat(OutDir, &fs) == -1 ) {
-		mkdir(OutDir, 0700);
+		mkdir(OutDir, 0775);
 	}
 
 	fstat(ifd, &fs);
@@ -93,9 +94,10 @@ int main( int argc, char *argv[] )
 		extract2sac( tankstart, TraceList[i] );
 	}
 
-	free(TraceList);
 	munmap(tankstart, fs.st_size);
+	free(TraceList);
 	close(ifd);
+
 /* Nanosecond Timer */
 	clock_gettime(CLOCK_REALTIME, &tt2);
 	fprintf(stdout, "%s Convertion complete! Total processing time: %.3f sec.\n", nowprog(),
@@ -104,6 +106,8 @@ int main( int argc, char *argv[] )
 	return 0;
 }
 
+/*
+*/
 static int extract2sac( void const *tankstart, TRACE_NODE *tnode )
 {
 	int    i, j;
@@ -118,7 +122,7 @@ static int extract2sac( void const *tankstart, TRACE_NODE *tnode )
 
 	uint8_t        *outbuf       = NULL;
 	uint8_t        *outbufend    = NULL;
-	const uint32_t  buffersiz    = MAX_BUF_SIZ_KB * 1024;
+	uint32_t        buffersiz    = sizeof(struct SAChead) + MAX_NUM_TBUF * 100 * sizeof(SACWORD);
 	char            sacfile[256] = { 0 };
 	struct SAChead *sachead      = NULL;
 	SACWORD        *seis         = NULL;
@@ -131,7 +135,7 @@ static int extract2sac( void const *tankstart, TRACE_NODE *tnode )
 	outbuf    = (uint8_t *)malloc(buffersiz);
 	outbufend = outbuf + buffersiz;
 	sachead   = (struct SAChead *)outbuf;
-	seis      = (float *)(sachead + 1);
+	seis      = (SACWORD *)(sachead + 1);
 
 	memset(outbuf, 0, buffersiz);
 
@@ -188,11 +192,19 @@ of the component name */
 	nsamp_trace = 0;
 	endtime     = time(NULL);
 
-	for ( i = 0; i < tnode->ntbuf && seis < (SACWORD *)outbufend; i++ ) {
+/* Go through the tracebuf list of this trace */
+	for ( i = 0; i < tnode->ntbuf; i++ ) {
 		tankbyte  = (uint8_t *)tankstart + tnode->tlist[i].offset;
 		trh2      = (TRACE2_HEADER *)tankbyte;
 		starttime = trh2->starttime;
 		samprate  = trh2->samprate;
+
+		int32_t   *idata           = (int32_t *)(trh2 + 1);
+		int16_t   *sdata           = (int16_t *)idata;
+		float     *fdata           = (float *)idata;
+		double    *ddata           = (double *)idata;
+		const char byte_order      = trh2->datatype[0];         /* Byte order of this TYPE_TRACEBUF2 msg */
+		const int  byte_per_sample = atoi(&trh2->datatype[1]);  /* For TYPE_TRACEBUF2 msg                */
 
 		if ( i > 0 ) {
 		/* Starttime is set for new packet; endtime is still set for old packet */
@@ -205,7 +217,7 @@ of the component name */
 					continue;
 				}
 			/* Do the filling */
-				for ( j = 0; j < nfill; j++, seis++ ) *seis = fill;
+				for ( j = 0; j < nfill && seis < (SACWORD *)outbufend; j++, seis++ ) *seis = fill;
 				nsamp_trace += nfill;
 			/* Keep track of how many gaps and the largest one */
 				gapcount++;
@@ -225,18 +237,16 @@ of the component name */
 			sachead->nzmsec = (int32_t)((starttime - (int32_t)starttime) * 1000.0);
 		}
 
-		int32_t   *idata           = (int32_t *)(trh2 + 1);
-		const int  byte_order      = trh2->datatype[0];         /* For TYPE_TRACEBUF2 msg                */
-		const char byte_per_sample = atoi(&trh2->datatype[1]);  /* Byte order of this TYPE_TRACEBUF2 msg */
-
+	/* Depends on the data type chose the pointer */
 		if ( byte_order == 'i' || byte_order == 's' ) {
 			if ( byte_per_sample == 4 ) {
-				for ( j = 0; j < trh2->nsamp; j++, seis++, idata++ )
+			/* Integer 4 bytes */
+				for ( j = 0; j < trh2->nsamp && seis < (SACWORD *)outbufend; j++, seis++, idata++ )
 					*seis = *idata * multiplier;
 			}
 			else if ( byte_per_sample == 2 ) {
-				int16_t *sdata = (int16_t *)idata;
-				for ( j = 0; j < trh2->nsamp; j++, seis++, sdata++ )
+			/* Short integer 2 bytes */
+				for ( j = 0; j < trh2->nsamp && seis < (SACWORD *)outbufend; j++, seis++, sdata++ )
 					*seis = *sdata * multiplier;
 			}
 			else continue;
@@ -244,18 +254,57 @@ of the component name */
 		else if ( byte_order == 'f' || byte_order == 't' ) {
 		/* Following would not work now... */
 			if ( byte_per_sample == 4 ) {
-				float *fdata = (float *)fdata;
-				for ( j = 0; j < trh2->nsamp; j++, seis++, fdata++ )
+			/* Float 4 bytes */
+				for ( j = 0; j < trh2->nsamp && seis < (SACWORD *)outbufend; j++, seis++, fdata++ )
 					*seis = *fdata * multiplier;
 			}
 			else if ( byte_per_sample == 8 ) {
-				double *ddata = (double *)idata;
-				for ( j = 0; j < trh2->nsamp; j++, seis++, ddata++ )
+			/* Double float 8 bytes */
+				for ( j = 0; j < trh2->nsamp && seis < (SACWORD *)outbufend; j++, seis++, ddata++ )
 					*seis = *ddata * multiplier;
 			}
 			else continue;
 		}
 		else continue;
+
+	/* Allocate more space if necessary
+	**********************************/
+		if ( seis >= (SACWORD *)outbufend ) {
+			buffersiz += MAX_NUM_TBUF * 100 * sizeof(SACWORD);
+			outbuf = realloc(outbuf, buffersiz);
+			if ( outbuf == NULL ) {
+				fprintf(stderr, "%s *** Could not realloc output buffer to %d bytes ***\n",
+					nowprog(), buffersiz);
+				return -1;
+			}
+			outbufend = outbuf + buffersiz;
+
+			if ( byte_order == 'i' || byte_order == 's' ) {
+				if ( byte_per_sample == 4 ) {
+				/* Integer 4 bytes */
+					for ( ; j < trh2->nsamp && seis < (SACWORD *)outbufend; j++, seis++, idata++ )
+						*seis = *idata * multiplier;
+				}
+				else if ( byte_per_sample == 2 ) {
+				/* Short integer 2 bytes */
+					for ( ; j < trh2->nsamp && seis < (SACWORD *)outbufend; j++, seis++, sdata++ )
+						*seis = *sdata * multiplier;
+				}
+			}
+			else if ( byte_order == 'f' || byte_order == 't' ) {
+			/* Following would not work now... */
+				if ( byte_per_sample == 4 ) {
+				/* Float 4 bytes */
+					for ( ; j < trh2->nsamp && seis < (SACWORD *)outbufend; j++, seis++, fdata++ )
+						*seis = *fdata * multiplier;
+				}
+				else if ( byte_per_sample == 8 ) {
+				/* Double float 8 bytes */
+					for ( ; j < trh2->nsamp && seis < (SACWORD *)outbufend; j++, seis++, ddata++ )
+						*seis = *ddata * multiplier;
+				}
+			}
+		}
 	/* Advance endtime to the new packet; process this packet in the next iteration */
 		endtime = trh2->endtime;
 		nsamp_trace += trh2->nsamp;
@@ -294,6 +343,8 @@ of the component name */
 	return 0;
 }
 
+/*
+*/
 static int scantracebuf( void const *tankstart, void const *tankend )
 {
 	TRACE2_HEADER *trh2 = NULL;              /* tracebuf message read from file      */

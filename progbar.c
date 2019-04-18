@@ -11,7 +11,10 @@ char *nowprog( void )
 {
 	static char progstr[16] = { 0 };
 
-	sprintf(progstr, "[%6.2f%%]", TotalDuty > 0 ? ((float)CompDuty/TotalDuty)*100.0 : 0.0);
+	if ( TotalDuty )
+		sprintf(progstr, "[%6.2f%%]", ((float)CompDuty/TotalDuty)*100.0);
+	else
+		sprintf(progstr, "[-------]");
 
 	return progstr;
 }

@@ -3,7 +3,6 @@
 #include <trace_buf.h>
 #include <sachead.h>
 
-#define MAX_BUF_SIZ_KB  4096
 #define MAX_NUM_TBUF    4096
 
 typedef struct {
