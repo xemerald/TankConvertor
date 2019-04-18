@@ -1,0 +1,14 @@
+# Ignore the swap files.
+*.swp
+
+# Ignore the object files.
+*.o
+
+# Ignore the library files.
+*.a
+
+# Ignore the execute files.
+tb2sac
+
+# Ignore the old code dir.
+TestingData
