@@ -1,14 +1,19 @@
 #
-#   THIS FILE IS UNDER RCS - DO NOT MODIFY UNLESS YOU HAVE
-#   CHECKED IT OUT USING THE COMMAND CHECKOUT.
 #
 #
-CFLAGS = /usr/bin/gcc -D_INTEL -Wall -O3 -flto -g -I./include
+CFLAGS = /usr/bin/gcc -D_INTEL -Wall -O3 -g -I./include
+#CFLAGS = /usr/bin/gcc -D_SPARC -Wall -O3 -g -I./include
 LIBS = -lm -lpthread
 LOCALMODULE = tb2sac.o compare.o sacproc.o progbar.o swap.o
 
-main: $(LOCALMODULE)
-	$(CFLAGS) -o tb2sac $(LOCALMODULE) $(LIBS)
+usage:
+	@echo "Usage: make normal or make centos"
+
+normal: $(LOCALMODULE)
+	$(CFLAGS) -flto -o tb2sac $(LOCALMODULE) $(LIBS)
+
+centos: $(LOCALMODULE)
+	$(CFLAGS) -o tb2sac $(LOCALMODULE) $(LIBS) -lrt
 
 .c.o:
 	$(CFLAGS) -c $<

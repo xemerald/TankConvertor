@@ -51,7 +51,7 @@ int main( int argc, char *argv[] )
 	}
 
 /* Nanosecond Timer */
-	clock_gettime(CLOCK_REALTIME, &tt1);
+	clock_gettime(CLOCK_MONOTONIC, &tt1);
 
 /* Open a waveform files
 ***********************/
@@ -99,7 +99,7 @@ int main( int argc, char *argv[] )
 	close(ifd);
 
 /* Nanosecond Timer */
-	clock_gettime(CLOCK_REALTIME, &tt2);
+	clock_gettime(CLOCK_MONOTONIC, &tt2);
 	fprintf(stdout, "%s Convertion complete! Total processing time: %.3f sec.\n", nowprog(),
 		(float)(tt2.tv_sec - tt1.tv_sec) + (float)(tt2.tv_nsec - tt1.tv_nsec)* 1e-9);
 
