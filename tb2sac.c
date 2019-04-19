@@ -68,7 +68,10 @@ int main( int argc, char *argv[] )
 ******************************/
 	sprintf(OutDir, "%s_%s", argv[1], OutFormat);
 /* Replace the '.' in the file name to '_' */
-	i = strrchr(OutDir, '/') - OutDir;
+	if ( strrchr(OutDir, '/') != NULL )
+		i = strrchr(OutDir, '/') - OutDir;
+	else i = 0;
+
 	for ( ; i < (int)strlen(OutDir); i++ )
 		if ( OutDir[i] == '.' ) OutDir[i] = '_';
 /* Check if the directory is existing or not */
