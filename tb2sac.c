@@ -14,7 +14,7 @@
 #include <swap.h>
 #include <tb2sac.h>
 
-#define VERSION         "0.0.1 - 2019-04-15"
+#define VERSION         "0.0.2 - 2019-12-19"
 #define AUTHOR          "Benjamin Ming Yang"
 
 static int  scantracebuf( const void *, const void * );
@@ -67,11 +67,11 @@ int main( int argc, char *argv[] )
 /* Create the output directory
 ******************************/
 	sprintf(OutDir, "%s_%s", argv[1], OutFormat);
-/* Replace the '.' in the file name to '_' */
+/* Move the index to the head of real filename, just skip the path */
 	if ( strrchr(OutDir, '/') != NULL )
 		i = strrchr(OutDir, '/') - OutDir;
 	else i = 0;
-
+/* Replace the '.' in the file name to '_' */
 	for ( ; i < (int)strlen(OutDir); i++ )
 		if ( OutDir[i] == '.' ) OutDir[i] = '_';
 /* Check if the directory is existing or not */
@@ -80,10 +80,10 @@ int main( int argc, char *argv[] )
 	}
 
 	fstat(ifd, &fs);
-	fprintf(stdout, "%s Open the tankfile %s, size is %d bytes.\n", nowprog(), argv[1], (int)fs.st_size);
+	fprintf(stdout, "%s Open the tankfile %s, size is %ld bytes.\n", nowprog(), argv[1], (size_t)fs.st_size);
 	fprintf(stdout, "%s Mapping the tankfile %s into memory...\n", nowprog(), argv[1]);
-	tankstart = mmap(NULL, (int)fs.st_size, PROT_READ | PROT_WRITE, MAP_PRIVATE, ifd, 0);
-	tankend   = (uint8_t *)tankstart + (int)fs.st_size;
+	tankstart = mmap(NULL, (size_t)fs.st_size, PROT_READ | PROT_WRITE, MAP_PRIVATE, ifd, 0);
+	tankend   = (uint8_t *)tankstart + (size_t)fs.st_size;
 
 	if ( (totaltrace = scantracebuf( tankstart, tankend )) <= 0 ) {
 		fprintf(stderr, "%s Cannot mark all the tracebuf from <%s>\n", nowprog(), argv[1] );
@@ -97,7 +97,7 @@ int main( int argc, char *argv[] )
 		extract2sac( tankstart, TraceList[i] );
 	}
 
-	munmap(tankstart, fs.st_size);
+	munmap(tankstart, (size_t)fs.st_size);
 	free(TraceList);
 	close(ifd);
 
@@ -147,7 +147,7 @@ static int extract2sac( void const *tankstart, TRACE_NODE *tnode )
 /* Set some columns to the default values that every one should be the same */
 	sacdefault( sachead );
 
-/* Copy the SCNL into the header and blank bad the trailing chars */
+/* Copy the SCNL into the header and blank the trailing chars */
 /* Station name */
 	strcpy(sachead->kstnm, tnode->sta);
 	for ( i = (int)strlen(tnode->sta); i < K_LEN; i++ ) sachead->kstnm[i] = ' ';
@@ -354,15 +354,15 @@ static int scantracebuf( void const *tankstart, void const *tankend )
 	TRACE_NODE    *tnode, tkey;
 	uint8_t       *tankbyte = NULL;
 
-    char    byte_order;       /* byte order of this TYPE_TRACEBUF2 msg */
-    int     byte_per_sample;  /* for TYPE_TRACEBUF2 msg                */
+	char    byte_order;       /* byte order of this TYPE_TRACEBUF2 msg */
+	int     byte_per_sample;  /* for TYPE_TRACEBUF2 msg                */
 	int     totaltrace = 0;   /* total # trace read from file so far   */
-    int     totalbyte  = 0;   /* total # bytes read from file so far   */
-    int     ntbuf      = 0;   /* total # msgs read of one trace        */
+	int     totalbyte  = 0;   /* total # bytes read from file so far   */
+	int     ntbuf      = 0;   /* total # msgs read of one trace        */
 	int     datalen;
 	int     i, rc;
 	double 	hdtime;           /* time read from TRACEBUF2 header       */
-    int32_t nsamp;            /* #samples in this message              */
+	int32_t nsamp;            /* #samples in this message              */
 
 
 /* Point to the mapping memory
@@ -456,8 +456,8 @@ static int scantracebuf( void const *tankstart, void const *tankend )
 		tnode->tlist[ntbuf].size   = datalen + sizeof(TRACE2_HEADER);
 		tnode->tlist[ntbuf].time   = hdtime;
 
-     /* Skip over data samples
-     ************************/
+	 /* Skip over data samples
+	 ************************/
 		if( tnode->tlist[ntbuf].size > MAX_TRACEBUF_SIZ ) {
 			fprintf(stderr, "%s *** msg[%d] overflows internal buffer[%d] ***\n",
 				nowprog(), tnode->tlist[ntbuf].size, MAX_TRACEBUF_SIZ );
@@ -502,15 +502,15 @@ static void sort_tlist( const void *nodep, const VISIT which, const int depth )
 	TRACE_NODE *tnode = *(TRACE_NODE **)nodep;
 
 /* Sort the TBUF structure on time */
-    switch (which) {
-        case postorder:
-        case leaf:
+	switch (which) {
+		case postorder:
+		case leaf:
 			qsort( tnode->tlist, tnode->ntbuf, sizeof(TBUF), compare_time );
-            break;
-        case preorder:
-        case endorder:
-            break;
-    }
+			break;
+		case preorder:
+		case endorder:
+			break;
+	}
 
 	return;
 }
