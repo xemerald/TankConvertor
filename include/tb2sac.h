@@ -6,8 +6,8 @@
 #define MAX_NUM_TBUF    4096
 
 typedef struct {
-    int    offset;    /* Offset in bytes from beginning of input file */
-    int    size;      /* Length in bytes of this TRACEBUF2 message    */
+    size_t offset;    /* Offset in bytes from beginning of input file */
+    size_t size;      /* Length in bytes of this TRACEBUF2 message    */
     double time;      /* A time from the header of this TRACEBUF2 msg */
 } TBUF;
 
@@ -17,8 +17,8 @@ typedef struct {
 	char  net[TRACE2_NET_LEN];
 	char  loc[TRACE2_LOC_LEN];
 
-	int   ntbuf;
-	int   maxtbuf;
+	unsigned int ntbuf;
+	unsigned int maxtbuf;
 	TBUF *tlist;
 } TRACE_NODE;
 

@@ -125,7 +125,7 @@ static int extract2sac( void const *tankstart, TRACE_NODE *tnode )
 
 	uint8_t        *outbuf       = NULL;
 	uint8_t        *outbufend    = NULL;
-	uint32_t        buffersiz    = sizeof(struct SAChead) + MAX_NUM_TBUF * 100 * sizeof(SACWORD);
+	size_t          buffersiz    = sizeof(struct SAChead) + MAX_NUM_TBUF * 100 * sizeof(SACWORD);
 	char            sacfile[256] = { 0 };
 	struct SAChead *sachead      = NULL;
 	SACWORD        *seis         = NULL;
@@ -211,13 +211,30 @@ of the component name */
 
 		if ( i > 0 ) {
 		/* Starttime is set for new packet; endtime is still set for old packet */
-			if ( endtime + (1.0/samprate) * 2.0 < starttime ) {
+			if ( endtime + (2.0 / samprate) < starttime ) {
 			/* There's a gap, so fill it */
-				int nfill = (int)((float)samprate * (float)(starttime - endtime));
+				int    nfill   = (int)((float)samprate * (float)(starttime - endtime));
+				size_t newsize = (nsamp_trace + nfill)*sizeof(SACWORD) + sizeof(struct SAChead);
 
-				if ( (nsamp_trace + nfill)*sizeof(SACWORD) + sizeof(struct SAChead) > buffersiz ) {
-					fprintf(stderr, "%s *** Bogus gap (%d); skipping! ***\n", nowprog(), nfill);
-					continue;
+				if ( newsize > buffersiz ) {
+					if ( newsize > buffersiz*2 ) {
+						fprintf(stderr, "%s *** Bogus gap (%d); skipping! ***\n", nowprog(), nfill);
+						continue;
+					}
+					else {
+					/* Still need to be revised, 'cause this block is repeated */
+						buffersiz += MAX_NUM_TBUF * 100 * sizeof(SACWORD);
+						outbuf = realloc(outbuf, buffersiz);
+						if ( outbuf == NULL ) {
+							fprintf(stderr, "%s *** Could not realloc output buffer to %ld bytes ***\n",
+								nowprog(), buffersiz);
+							return -1;
+						}
+					/* */
+						seis      = (SACWORD *)((struct SAChead *)outbuf + 1) + (seis - (SACWORD *)(sachead + 1));
+						sachead   = (struct SAChead *)outbuf;
+						outbufend = outbuf + buffersiz;
+					}
 				}
 			/* Do the filling */
 				for ( j = 0; j < nfill && seis < (SACWORD *)outbufend; j++, seis++ ) *seis = fill;
@@ -225,6 +242,10 @@ of the component name */
 			/* Keep track of how many gaps and the largest one */
 				gapcount++;
 				if ( nfill_max < nfill ) nfill_max = nfill;
+			}
+			else if ( endtime + (1.0 / samprate) > trh2->endtime ) {
+			/* This is a duplicated tracebuf, we'll just skip it */
+				continue;
 			}
 		}
 		else {
@@ -276,10 +297,13 @@ of the component name */
 			buffersiz += MAX_NUM_TBUF * 100 * sizeof(SACWORD);
 			outbuf = realloc(outbuf, buffersiz);
 			if ( outbuf == NULL ) {
-				fprintf(stderr, "%s *** Could not realloc output buffer to %d bytes ***\n",
+				fprintf(stderr, "%s *** Could not realloc output buffer to %ld bytes ***\n",
 					nowprog(), buffersiz);
 				return -1;
 			}
+		/* */
+			seis      = (SACWORD *)((struct SAChead *)outbuf + 1) + (seis - (SACWORD *)(sachead + 1));
+			sachead   = (struct SAChead *)outbuf;
 			outbufend = outbuf + buffersiz;
 
 			if ( byte_order == 'i' || byte_order == 's' ) {
@@ -313,7 +337,7 @@ of the component name */
 		nsamp_trace += trh2->nsamp;
 	}
 
-/*  All trace data fed into SAC data section.  Now fill in the rest header */
+/*  All trace data fed into SAC data section.  Now fill in the rest of header */
 	sachead->npts  = (int32_t)nsamp_trace;                 /* Samples in trace */
 	sachead->delta = (float)(1.0/samprate);                /* Sample period */
 	sachead->e     = (float)nsamp_trace * sachead->delta;  /* End time */
@@ -322,7 +346,7 @@ of the component name */
 ****************************/
 	sprintf(sacfile, "%s/%s_%s_%s_%s.sac", OutDir, tnode->sta, tnode->chan, tnode->net, tnode->loc);
 /* Compute the total size of the SAC file */
-	unsigned long totalbyte = sizeof(struct SAChead) + sachead->npts * sizeof(SACWORD);
+	size_t totalbyte = sizeof(struct SAChead) + sachead->npts * sizeof(SACWORD);
 /* Open the file and write all buffer data into the file */
 	FILE *ofp = fopen(sacfile, "wb");
 	if ( fwrite(outbuf, 1, totalbyte, ofp) != totalbyte ) {
@@ -357,9 +381,9 @@ static int scantracebuf( void const *tankstart, void const *tankend )
 	char    byte_order;       /* byte order of this TYPE_TRACEBUF2 msg */
 	int     byte_per_sample;  /* for TYPE_TRACEBUF2 msg                */
 	int     totaltrace = 0;   /* total # trace read from file so far   */
-	int     totalbyte  = 0;   /* total # bytes read from file so far   */
 	int     ntbuf      = 0;   /* total # msgs read of one trace        */
-	int     datalen;
+	size_t  skipbyte   = 0;   /* total # bytes skipped from last successed fetching */
+	size_t  datalen;
 	int     i, rc;
 	double 	hdtime;           /* time read from TRACEBUF2 header       */
 	int32_t nsamp;            /* #samples in this message              */
@@ -375,35 +399,31 @@ static int scantracebuf( void const *tankstart, void const *tankend )
 /* Read thru mapping memory reading headers; gather info about all tracebuf messages
 **************************************************************************/
 	do {
-		trh2            = (TRACE2_HEADER *)tankbyte;
+		trh2 = (TRACE2_HEADER *)tankbyte;
+	/* Swap the byte order into local order, and check the validity of this tracebuf */
+		if ( (rc = WaveMsg2MakeLocal( trh2 )) < 0 ) {
+			if ( rc == -1 ) {
+				if ( ++tankbyte < (uint8_t *)tankend ) {
+					skipbyte++;
+					continue;
+				}
+				else break;
+			}
+			else fprintf(stderr, "%s *** WaveMsg2MakeLocal() failed! Skip this tracebuf! ***\n", nowprog());
+		}
+		else {
+			if ( skipbyte ) {
+				fprintf(stderr, "%s Shift total %ld bytes, found the next correct tracebuf for <%s.%s.%s.%s> %13.2f+%4.2f!\n",
+					nowprog(), skipbyte, trh2->sta, trh2->chan, trh2->net,
+					trh2->loc, trh2->starttime, trh2->endtime-trh2->starttime);
+			}
+			skipbyte = 0;
+		}
+
 		hdtime          = trh2->endtime;
 		nsamp           = trh2->nsamp;
 		byte_order      = trh2->datatype[0];
 		byte_per_sample = atoi(&trh2->datatype[1]);
-
-#ifdef _SPARC
-		if( byte_order == 'i' || byte_order == 'f' ) {
-			SwapInt32( &nsamp );
-			SwapDouble( &hdtime );
-		}
-#endif
-#ifdef _INTEL
-		if( byte_order == 's' || byte_order == 't' ) {
-			SwapInt32( &nsamp );
-			SwapDouble( &hdtime );
-		}
-#endif
-
-	/* Swap the byte order into local order */
-		if ( (rc = WaveMsg2MakeLocal( trh2 )) < 0 ) {
-			fprintf(stderr, "%s <%s.%s.%s.%s> %13.2f+%4.2f WaveMsg2MakeLocal() error.\n",
-				nowprog(), trh2->sta, trh2->chan, trh2->net, trh2->loc,
-				trh2->starttime, trh2->endtime-trh2->starttime);
-			if ( rc == -1 ) {
-				fprintf(stderr, "%s *** WaveMsg2MakeLocal() failed! Skip this tracebuf! ***\n", nowprog());
-				return -1;
-			}
-		}
 
 	/* Store pertinent info about this tracebuf message
 	**************************************************/
@@ -452,20 +472,19 @@ static int scantracebuf( void const *tankstart, void const *tankend )
 	/* Fetch the # tracebuf to local memory, it would simplify the code */
 		ntbuf = tnode->ntbuf;
 	/* Fill in the pertinent info */
-		tnode->tlist[ntbuf].offset = totalbyte;
+		tnode->tlist[ntbuf].offset = tankbyte - (uint8_t *)tankstart;
 		tnode->tlist[ntbuf].size   = datalen + sizeof(TRACE2_HEADER);
 		tnode->tlist[ntbuf].time   = hdtime;
 
 	 /* Skip over data samples
 	 ************************/
 		if( tnode->tlist[ntbuf].size > MAX_TRACEBUF_SIZ ) {
-			fprintf(stderr, "%s *** msg[%d] overflows internal buffer[%d] ***\n",
+			fprintf(stderr, "%s *** msg[%ld] overflows internal buffer[%d] ***\n",
 				nowprog(), tnode->tlist[ntbuf].size, MAX_TRACEBUF_SIZ );
 			return -1;
 		}
 	/* Keep track the total bytes we have read, and move the pointer to the next header */
-		totalbyte += tnode->tlist[ntbuf].size;
-		tankbyte  += tnode->tlist[ntbuf].size;
+		tankbyte += tnode->tlist[ntbuf].size;
 
 	/* Now check to see if we store this packet at all */
 	/* Only track this tracebuf if WaveMsg2MakeLocal() SUCCEEDED */
