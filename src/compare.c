@@ -1,10 +1,9 @@
 #include <string.h>
 #include <tb2sac.h>
 
-
 /*
-*
-*/
+ *
+ */
 int compare_SCNL( const void *a, const void *b )
 {
 	int ret;
@@ -22,8 +21,8 @@ int compare_SCNL( const void *a, const void *b )
 }
 
 /*
-*
-*/
+ *
+ */
 int compare_time( const void *a, const void *b )
 {
 	TBUF *ta = (TBUF *)a;

@@ -12,3 +12,6 @@ tb2sac
 
 # Ignore the old code dir.
 TestingData
+
+#
+.vscode

@@ -1,0 +1,27 @@
+#
+#
+#
+CFLAGS = -D$(BYTE_ORDER) -O3 -g -I../include -flto
+LIBS = -lm -lpthread
+LL = ../lib
+LOCALLIBS = $(LL)/swap.o $(LL)/libmseed.a
+UTILITY = compare.o sacproc.o progbar.o
+
+tb2sac: tb2sac.o $(UTILITY)
+	$(CC) $(CFLAGS) -o ../tb2sac tb2sac.o $(UTILITY) $(LOCALLIBS)
+
+# Compile rule for OS centos
+#
+centos: LIBS+=-lrt
+centos: tb2sac
+
+# Compile rule for Object
+.c.o:
+	$(CC) $(CFLAGS) -c $<
+
+# Clean-up rules
+clean:
+	rm -f a.out core *.o *.obj *% *~
+
+clean_bin:
+	rm -f ../tb2sac

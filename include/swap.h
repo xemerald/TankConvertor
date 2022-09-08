@@ -1,42 +1,26 @@
-
-/*
- *   THIS FILE IS UNDER RCS - DO NOT MODIFY UNLESS YOU HAVE
- *   CHECKED IT OUT USING THE COMMAND CHECKOUT.
- *
- *    $Id: swap.h 6803 2016-09-09 06:06:39Z et $
- *
- *    Revision history:
- *     $Log$
- *     Revision 1.4  2005/06/13 18:11:06  dietz
- *     add
- *
- *     Revision 1.3  2004/04/13 22:21:43  dietz
- *     added prototype for WaveMsg2MakeLocal()
- *
- *     Revision 1.2  2000/03/09 21:59:17  davidk
- *     added a prototype for SwapFloat(), it had not been inluded in the
- *     list of swap function prototypes.
- *
- *     Revision 1.1  2000/02/14 20:05:54  lucky
- *     Initial revision
- *
- *
- */
 #pragma once
 
-#include <stdint.h>
 #include <trace_buf.h>
 
-/* include file for swap.c: handy routines for swapping earthwormy things */
+#ifdef WIN64  /* use keyword to address alignment issues with 64-bit Windows */
+#define _UNALIGNED __unaligned
+#else
+#define _UNALIGNED
+#endif
 
-void SwapShort( short * );                  /* swap.c       sys-independent  */
-void SwapInt32( int32_t * );                /* swap.c       sys-independent  */
-void SwapUint32( uint32_t * );              /* swap.c       sys-independent  */
-void SwapInt( int * );                      /* swap.c       sys-independent  */
-void SwapDouble( double * );                /* swap.c       sys-independent  */
-void SwapFloat( float * );                  /* swap.c       sys-independent  */
+/* include file for swap.c: handy routines for swapping earthwormy things */
+void swap_uint16( void * );
+#define swap_int16( data ) swap_uint16( data )
+#define swap_short( data ) swap_uint16( data )
+void swap_uint32( void * );
+#define swap_int32( data ) swap_uint32( data )
+#define swap_int( data ) swap_uint32( data )
+#define swap_float( data ) swap_uint32( data )
+void swap_uint64( _UNALIGNED void * );
+#define swap_int64( data ) swap_uint64( data )
+#define swap_double( data ) swap_uint64( data )
 
 /* fixes wave message into local byte order, based on globals _SPARC and _INTEL */
-int WaveMsgMakeLocal( TRACE_HEADER* );
-int WaveMsg2MakeLocal( TRACE2_HEADER* );
-int WaveMsg2XMakeLocal( TRACE2X_HEADER* );
+int swap_wavemsg_makelocal( TRACE_HEADER* );
+int swap_wavemsg2_makelocal( TRACE2_HEADER* );
+int swap_wavemsg2x_makelocal( TRACE2X_HEADER* );

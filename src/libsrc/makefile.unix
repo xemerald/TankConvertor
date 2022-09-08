@@ -1,0 +1,39 @@
+#
+#
+#
+CFLAGS = -D$(BYTE_ORDER) -O3 -g -I../../include -flto
+LL = ../../lib
+LOCALSRCS = swap.c
+LOCALOBJS = $(LOCALSRCS:%.c=%.o)
+
+all: $(LOCALOBJS) libmseed
+	@mv *.o $(LL)
+
+#
+# PGPlot library
+#
+libmseed: PHONY
+	-@cd ./libmseed && \
+		echo Making miniseed library... ; \
+		make ; \
+		mv *.a ../$(LL) ; \
+		cd ..
+
+#
+.c.o:
+	@echo Compiling $<...
+	@$(CC) $(CFLAGS) -c $<
+
+# Clean-up rules
+clean:
+	@echo Cleaning build objects...
+	@rm -f a.out core *.o *.obj *% *~
+	-@cd ./libmseed && \
+		make clean; \
+		cd ..
+
+clean_lib:
+	@echo Removing libraries...
+	@rm -f $(LL)/*.o $(LL)/*.a
+
+PHONY:

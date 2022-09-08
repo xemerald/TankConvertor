@@ -6,9 +6,9 @@
 #define MAX_NUM_TBUF    4096
 
 typedef struct {
-    size_t offset;    /* Offset in bytes from beginning of input file */
-    size_t size;      /* Length in bytes of this TRACEBUF2 message    */
-    double time;      /* A time from the header of this TRACEBUF2 msg */
+	size_t offset;    /* Offset in bytes from beginning of input file */
+	size_t size;      /* Length in bytes of this TRACEBUF2 message    */
+	double time;      /* A time from the header of this TRACEBUF2 msg */
 } TBUF;
 
 typedef struct {
@@ -22,10 +22,14 @@ typedef struct {
 	TBUF *tlist;
 } TRACE_NODE;
 
-char *nowprog( void );
-
+/* Progression bar function */
+char *progbar_now( void );
+int progbar_init( const int );
+int progbar_inc( void );
+/* Compare functions */
 int compare_SCNL( const void *, const void * );
 int compare_time( const void *, const void * );
-
-void sacinit( struct SAChead * );
-void sacdefault( struct SAChead * );
+/* SAC-related functions */
+void sacproc_init( struct SAChead * );
+void sacproc_default_set( struct SAChead * );
+int  sacproc_output( const char *, void const *, TRACE_NODE * );
