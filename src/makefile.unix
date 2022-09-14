@@ -1,19 +1,21 @@
 #
 #
 #
+BIN_NAME = tbconvert
+#
 CFLAGS = -D$(BYTE_ORDER) -O3 -g -I../include -flto
 LIBS = -lm -lpthread
 LL = ../lib
 LOCALLIBS = $(LL)/swap.o $(LL)/libmseed.a
-UTILITY = compare.o sacproc.o progbar.o
+UTILITY = compare.o sacproc.o msproc.o progbar.o
 
-tb2sac: tb2sac.o $(UTILITY)
-	$(CC) $(CFLAGS) -o ../tb2sac tb2sac.o $(UTILITY) $(LOCALLIBS)
+tbconvert: tbconvert.o $(UTILITY)
+	$(CC) $(CFLAGS) -o ../$(BIN_NAME) tbconvert.o $(UTILITY) $(LOCALLIBS)
 
 # Compile rule for OS centos
 #
 centos: LIBS+=-lrt
-centos: tb2sac
+centos: tbconvert
 
 # Compile rule for Object
 .c.o:
@@ -24,4 +26,4 @@ clean:
 	rm -f a.out core *.o *.obj *% *~
 
 clean_bin:
-	rm -f ../tb2sac
+	rm -f ../$(BIN_NAME)

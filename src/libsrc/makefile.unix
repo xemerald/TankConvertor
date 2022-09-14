@@ -10,7 +10,7 @@ all: $(LOCALOBJS) libmseed
 	@mv *.o $(LL)
 
 #
-# PGPlot library
+# miniSEED library
 #
 libmseed: PHONY
 	-@cd ./libmseed && \

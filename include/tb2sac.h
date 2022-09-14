@@ -1,10 +1,20 @@
 #pragma once
 
 #include <trace_buf.h>
+#include <libmseed.h>
 #include <sachead.h>
-
+/* */
+#define PROG_NAME       "tbconvert"
+#define VERSION         "0.0.2 - 2019-12-19"
+#define AUTHOR          "Benjamin Ming Yang"
+/* */
 #define MAX_NUM_TBUF    4096
+/* */
+#define CONV_FORMAT_SAC     0
+#define CONV_FORMAT_MSEED   1
+#define CONV_FORMAT_MSEED3  2
 
+/* */
 typedef struct {
 	size_t offset;    /* Offset in bytes from beginning of input file */
 	size_t size;      /* Length in bytes of this TRACEBUF2 message    */
@@ -24,12 +34,14 @@ typedef struct {
 
 /* Progression bar function */
 char *progbar_now( void );
-int progbar_init( const int );
-int progbar_inc( void );
+int   progbar_init( const int );
+int   progbar_inc( void );
 /* Compare functions */
 int compare_SCNL( const void *, const void * );
 int compare_time( const void *, const void * );
 /* SAC-related functions */
-void sacproc_init( struct SAChead * );
-void sacproc_default_set( struct SAChead * );
-int  sacproc_output( const char *, void const *, TRACE_NODE * );
+char *sacproc_outpath_gen( const char *, const char * );
+int   sacproc_output( const char *, void const *, TRACE_NODE * );
+/* miniSEED-related functions */
+char *msproc_outpath_gen( const char *, const char * );
+int   msproc_tlist_add( MS3TraceList *, void const *, TRACE_NODE * );

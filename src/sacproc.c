@@ -4,60 +4,52 @@
 #include <string.h>
 #include <time.h>
 #include <errno.h>
+#include <sys/stat.h>
 /* */
 #include <sachead.h>
 #include <tb2sac.h>
 #include <trace_buf.h>
 
+/* */
+static void sacproc_init( struct SAChead * );
+static void sacproc_default_set( struct SAChead * );
+
 /*
  *
  */
-void sacproc_init( struct SAChead *head )
+char *sacproc_outpath_gen( const char *inputfile, const char *outpath )
 {
-	int i;
-/* Use a simple structure here - we don't care what the variables are - set them to 'undefined' */
-	struct SAChead2 *head2 = (struct SAChead2 *)head;
+	static char result[128];
+	int         i;
+	struct stat fs;
 
-/* Set all of the floats to 'undefined' */
-	for ( i = 0; i < NUM_FLOAT; i++ )
-		head2->SACfloat[i] = SACUNDEF;
-/* Set all of the ints to 'undefined' */
-	for ( i = 0; i < MAXINT-5; i++ )
-		head2->SACint[i] = SACUNDEF;
-/* Except for the logical integers - set them to 1 */
-	for ( ; i < MAXINT; i++ )
-		head2->SACint[i] = 1;
-/* Set all of the strings to 'undefined' */
-	for ( i = 0; i < MAXSTRING; i++ )
-		strncpy(head2->SACstring[i], SACSTRUNDEF, K_LEN);
+/* Create the output directory */
+	if ( !outpath || !strlen(outpath) ) {
+		sprintf(result, "%s_SAC", inputfile);
+	/* Move the index to the head of real filename, just skip the path */
+		if ( strrchr(result, '/') != NULL )
+			i = strrchr(result, '/') - result;
+		else
+			i = 0;
+	/* Replace the '.' in the file name to '_' */
+		for ( ; i < (int)strlen(result); i++ )
+			if ( result[i] == '.' )
+				result[i] = '_';
+	}
+	else {
+		strcpy(result, outpath);
+	}
+/* Check if the directory is existing or not */
+	if ( stat(result, &fs) == -1 )
+		mkdir(result, 0775);
 
-/* SAC I.D. number */
-	head2->SACfloat[9] = SAC_I_D;
-/* Header version number */
-	head2->SACint[6] = SACVERSION;
-
-	return;
+	return result;
 }
 
 /*
  *
  */
-void sacproc_default_set( struct SAChead *head )
-{
-	head->idep   = SAC_IUNKN;      /* Unknown independent data type */
-	head->iztype = SAC_IBEGINTIME; /* Reference time is Begin time */
-	head->iftype = SAC_ITIME;      /* File type is time series */
-	head->leven  = 1;              /* Evenly spaced data */
-	head->b      = 0.0;            /* Beginning time relative to reference time */
-	strncpy(head->ko, "origin ", K_LEN);
-
-	return;
-}
-
-/*
- *
- */
-int sacproc_output( const char *outdir, void const *tankstart, TRACE_NODE *tnode )
+int sacproc_output( const char *outpath, void const *tankstart, TRACE_NODE *tnode )
 {
 	int    i, j;
 	int    gapcount  = 0;
@@ -94,7 +86,6 @@ int sacproc_output( const char *outdir, void const *tankstart, TRACE_NODE *tnode
 	sacproc_init( sachead );
 /* Set some columns to the default values that every one should be the same */
 	sacproc_default_set( sachead );
-
 /* Copy the SCNL into the header and blank the trailing chars */
 /* Station name */
 	strcpy(sachead->kstnm, tnode->sta);
@@ -147,10 +138,8 @@ int sacproc_output( const char *outdir, void const *tankstart, TRACE_NODE *tnode
 		stdout, "%s SAC header of %s.%s.%s.%s preparation complete!\n",
 		progbar_now(), tnode->sta, tnode->chan, tnode->net, tnode->loc
 	);
-
 	nsamp_trace = 0;
 	endtime     = time(NULL);
-
 /* Go through the tracebuf list of this trace */
 	for ( i = 0; i < tnode->ntbuf; i++ ) {
 		tankbyte  = (uint8_t *)tankstart + tnode->tlist[i].offset;
@@ -256,9 +245,7 @@ int sacproc_output( const char *outdir, void const *tankstart, TRACE_NODE *tnode
 		else {
 			continue;
 		}
-
-	/* Allocate more space if necessary
-	**********************************/
+	/* Allocate more space if necessary */
 		if ( seis >= (SACWORD *)outbufend ) {
 			buffersiz += MAX_NUM_TBUF * 100 * sizeof(SACWORD);
 			outbuf = realloc(outbuf, buffersiz);
@@ -304,21 +291,18 @@ int sacproc_output( const char *outdir, void const *tankstart, TRACE_NODE *tnode
 		endtime = trh2->endtime;
 		nsamp_trace += trh2->nsamp;
 	}
-
-/*  All trace data fed into SAC data section.  Now fill in the rest of header */
+/* All trace data fed into SAC data section.  Now fill in the rest of header */
 	sachead->npts  = (int32_t)nsamp_trace;                 /* Samples in trace */
 	sachead->delta = (float)(1.0/samprate);                /* Sample period */
 	sachead->e     = (float)nsamp_trace * sachead->delta;  /* End time */
-
-/* Output to the SAC file...
-****************************/
-	sprintf(sacfile, "%s/%s_%s_%s_%s.sac", outdir, tnode->sta, tnode->chan, tnode->net, tnode->loc);
+/* Output to the SAC file... */
+	sprintf(sacfile, "%s/%s_%s_%s_%s.sac", outpath, tnode->sta, tnode->chan, tnode->net, tnode->loc);
 /* Compute the total size of the SAC file */
 	size_t totalbyte = sizeof(struct SAChead) + sachead->npts * sizeof(SACWORD);
 /* Open the file and write all buffer data into the file */
 	FILE *ofp = fopen(sacfile, "wb");
 	if ( fwrite(outbuf, 1, totalbyte, ofp) != totalbyte ) {
-		fprintf(stderr, "%s *** Error writing sacfile: %s ***\n", progbar_now(), strerror(errno));
+		fprintf(stderr, "%s *** Error writing SAC file: %s ***\n", progbar_now(), strerror(errno));
 		return -1;;
 	}
 	fclose(ofp);
@@ -340,4 +324,49 @@ int sacproc_output( const char *outdir, void const *tankstart, TRACE_NODE *tnode
 	);
 
 	return 0;
+}
+
+/*
+ *
+ */
+static void sacproc_init( struct SAChead *head )
+{
+	int i;
+/* Use a simple structure here - we don't care what the variables are - set them to 'undefined' */
+	struct SAChead2 *head2 = (struct SAChead2 *)head;
+
+/* Set all of the floats to 'undefined' */
+	for ( i = 0; i < NUM_FLOAT; i++ )
+		head2->SACfloat[i] = SACUNDEF;
+/* Set all of the ints to 'undefined' */
+	for ( i = 0; i < MAXINT-5; i++ )
+		head2->SACint[i] = SACUNDEF;
+/* Except for the logical integers - set them to 1 */
+	for ( ; i < MAXINT; i++ )
+		head2->SACint[i] = 1;
+/* Set all of the strings to 'undefined' */
+	for ( i = 0; i < MAXSTRING; i++ )
+		strncpy(head2->SACstring[i], SACSTRUNDEF, K_LEN);
+
+/* SAC I.D. number */
+	head2->SACfloat[9] = SAC_I_D;
+/* Header version number */
+	head2->SACint[6] = SACVERSION;
+
+	return;
+}
+
+/*
+ *
+ */
+static void sacproc_default_set( struct SAChead *head )
+{
+	head->idep   = SAC_IUNKN;      /* Unknown independent data type */
+	head->iztype = SAC_IBEGINTIME; /* Reference time is Begin time */
+	head->iftype = SAC_ITIME;      /* File type is time series */
+	head->leven  = 1;              /* Evenly spaced data */
+	head->b      = 0.0;            /* Beginning time relative to reference time */
+	strncpy(head->ko, "origin ", K_LEN);
+
+	return;
 }

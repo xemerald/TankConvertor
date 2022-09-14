@@ -8,7 +8,7 @@
 *.a
 
 # Ignore the execute files.
-tb2sac
+tbconvert
 
 # Ignore the old code dir.
 TestingData
