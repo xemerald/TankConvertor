@@ -107,7 +107,7 @@ int main( int argc, char *argv[] )
 /* Nanosecond Timer */
 	clock_gettime(CLOCK_MONOTONIC, &tt2);
 	fprintf(
-		stdout, "%s Convertion complete! Total processing time: %.3f sec.\n", progbar_now(),
+		stdout, "%s Conversion complete! Total processing time: %.3f sec.\n", progbar_now(),
 		(float)(tt2.tv_sec - tt1.tv_sec) + (float)(tt2.tv_nsec - tt1.tv_nsec)* 1e-9
 	);
 
