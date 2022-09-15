@@ -6,7 +6,7 @@
 #include <sys/stat.h>
 /* */
 #include <libmseed.h>
-#include <tb2sac.h>
+#include <tbconvert.h>
 #include <trace_buf.h>
 
 /*
@@ -71,8 +71,14 @@ int msproc_tlist_add( MS3TraceList *msl, void const *tankstart, TRACE_NODE *tnod
 		fprintf(stderr, "%s *** Could not allocate memory; skipping! ***\n", progbar_now());
 		return -1;
 	}
-/* Copy the SCNL into the header and blank the trailing chars */
-	ms_nslc2sid(msr->sid, LM_SIDLEN, 0, tnode->net, tnode->sta, tnode->loc, tnode->chan);
+/* Turn the SCNL into the header sid and NULL the "--" location */
+	ms_nslc2sid(
+		msr->sid, LM_SIDLEN, 0,
+		tnode->net,
+		tnode->sta,
+		strcmp(tnode->loc, LOC_NULL_STRING) ? tnode->loc : NULL,
+		tnode->chan
+	);
 /* */
 	msr->pubversion = 1;
 	fprintf(

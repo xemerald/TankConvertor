@@ -5,7 +5,7 @@
 #include <sachead.h>
 /* */
 #define PROG_NAME       "tbconvert"
-#define VERSION         "0.0.2 - 2019-12-19"
+#define VERSION         "1.0.0 - 2022-09-15"
 #define AUTHOR          "Benjamin Ming Yang"
 /* */
 #define MAX_NUM_TBUF    4096
@@ -20,7 +20,7 @@ typedef struct {
 	size_t size;      /* Length in bytes of this TRACEBUF2 message    */
 	double time;      /* A time from the header of this TRACEBUF2 msg */
 } TBUF;
-
+/* */
 typedef struct {
 	char  sta[TRACE2_STA_LEN];
 	char  chan[TRACE2_CHAN_LEN];
@@ -41,7 +41,7 @@ int compare_SCNL( const void *, const void * );
 int compare_time( const void *, const void * );
 /* SAC-related functions */
 char *sacproc_outpath_gen( const char *, const char * );
-int   sacproc_output( const char *, void const *, TRACE_NODE * );
+int   sacproc_trace_output( const char *, void const *, TRACE_NODE * );
 /* miniSEED-related functions */
 char *msproc_outpath_gen( const char *, const char * );
 int   msproc_tlist_add( MS3TraceList *, void const *, TRACE_NODE * );

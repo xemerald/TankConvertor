@@ -158,7 +158,7 @@ static int makelocal_wavemsg_ver( TRACE2X_HEADER *wvmsg, char version )
 	char     loc_fbyte_order = ' ';
 	char     ops_ibyte_order = ' ';
 	char     ops_fbyte_order = ' ';
-	printf("swap_wavemsg2_makelocal warning: _INTEL and _SPARC are both undefined.");
+	printf("%s warning: _INTEL and _SPARC are both undefined.", __func__);
 	return -1;
 #endif
 /* */
@@ -210,8 +210,8 @@ static int makelocal_wavemsg_ver( TRACE2X_HEADER *wvmsg, char version )
 /* */
 	if ( wvmsg->nsamp > tracedata_max_size / data_size ) {
 		fprintf(
-			stderr,"swap_wavemsg2_makelocal: packet from %s.%s.%s.%s has bad number of samples=%d datatype=%s\n",
-			wvmsg->sta, wvmsg->chan, wvmsg->net, wvmsg->loc, wvmsg->nsamp, wvmsg->datatype
+			stderr,"%s: packet from %s.%s.%s.%s has bad number of samples=%d datatype=%s\n",
+			__func__, wvmsg->sta, wvmsg->chan, wvmsg->net, wvmsg->loc, wvmsg->nsamp, wvmsg->datatype
 		);
 		return -1;
 	}
@@ -240,15 +240,15 @@ static int makelocal_wavemsg_ver( TRACE2X_HEADER *wvmsg, char version )
  */
 	if ( endtime < (_endtime - fudge) || endtime > (_endtime + fudge) ) {
 		fprintf(
-			stderr,"swap_wavemsg2_makelocal: packet from %s.%s.%s.%s has inconsistent header values!\n",
-			wvmsg->sta, wvmsg->chan, wvmsg->net, wvmsg->loc
+			stderr,"%s: packet from %s.%s.%s.%s has inconsistent header values!\n",
+			__func__, wvmsg->sta, wvmsg->chan, wvmsg->net, wvmsg->loc
 		);
-		fprintf(stderr,"swap_wavemsg2_makelocal: header.starttime  : %.4lf\n", starttime);
-		fprintf(stderr,"swap_wavemsg2_makelocal: header.samplerate : %.1lf\n", samprate );
-		fprintf(stderr,"swap_wavemsg2_makelocal: header.nsample    : %d\n",    nsamp    );
-		fprintf(stderr,"swap_wavemsg2_makelocal: header.endtime    : %.4lf\n", endtime  );
-		fprintf(stderr,"swap_wavemsg2_makelocal: computed.endtime  : %.4lf\n", _endtime );
-		fprintf(stderr,"swap_wavemsg2_makelocal: header.endtime is not within 5 sample intervals of computed.endtime!\n");
+		fprintf(stderr,"%s: header.starttime  : %.4lf\n", __func__, starttime);
+		fprintf(stderr,"%s: header.samplerate : %.1lf\n", __func__, samprate );
+		fprintf(stderr,"%s: header.nsample    : %d\n", __func__,    nsamp    );
+		fprintf(stderr,"%s: header.endtime    : %.4lf\n", __func__, endtime  );
+		fprintf(stderr,"%s: computed.endtime  : %.4lf\n", __func__, _endtime );
+		fprintf(stderr,"%s: header.endtime is not within 5 sample intervals of computed.endtime!\n", __func__);
 		return -2;
 	}
 

@@ -11,12 +11,12 @@
 #include <trace_buf.h>
 #include <libmseed.h>
 #include <swap.h>
-#include <tb2sac.h>
+#include <tbconvert.h>
 /* */
 static int  scan_tracebuf( const void *, const void * );
 static void sort_tlist( const void *, const VISIT, const int );
 static void tree2list( const void *, const VISIT, const int );
-static int  proc_argv( int , char *[] );
+static int  proc_argv( int , char * [] );
 static void usage( void );
 
 static char        *InputFile     = NULL;
@@ -65,23 +65,28 @@ int main( int argc, char *argv[] )
 	tankend   = (uint8_t *)tankstart + (size_t)fs.st_size;
 /* */
 	if ( (totaltrace = scan_tracebuf( tankstart, tankend )) <= 0 ) {
-		fprintf(stderr, "%s Cannot mark all the tracebuf from <%s>\n", progbar_now(), InputFile);
+		fprintf(stderr, "%s Cannot mark all the tracebuf from tankfile <%s>\n", progbar_now(), InputFile);
 		return -1;
 	}
 /* */
 	progbar_init( totaltrace + 2 );
-	fprintf(stdout, "%s Estimation complete, total %d traces.\n", progbar_now(), totaltrace );
+	fprintf(stdout, "%s Estimation complete, total %d traces.\n", progbar_now(), totaltrace);
 /* */
 	switch ( ConvFormat ) {
 	case CONV_FORMAT_SAC:
 	default:
+	/* */
+		_OutPath = sacproc_outpath_gen( InputFile, OutPath );
+	/* */
 		for ( i = 0; i < totaltrace; i++ ) {
-			sacproc_output( _OutPath, tankstart, TraceList[i] );
+			sacproc_trace_output( _OutPath, tankstart, TraceList[i] );
 		}
 		progbar_inc();
 		break;
 	case CONV_FORMAT_MSEED:
 	case CONV_FORMAT_MSEED3:
+	/* */
+		_OutPath = msproc_outpath_gen( InputFile, OutPath );
 	/* */
 		msl = mstl3_init(NULL);
 		for ( i = 0; i < totaltrace; i++ ) {
@@ -137,6 +142,9 @@ static int scan_tracebuf( void const *tankstart, void const *tankend )
 	tankbyte = (uint8_t *)tankstart;
 /* Initialize the key node */
 	memset(&tkey, 0, sizeof(TRACE_NODE));
+	tkey.ntbuf   = 0;
+	tkey.maxtbuf = MAX_NUM_TBUF;
+	tkey.tlist   = NULL;
 /* Read thru mapping memory reading headers; gather info about all tracebuf messages */
 	do {
 		trh2 = (TRACE2_HEADER *)tankbyte;
@@ -180,8 +188,6 @@ static int scan_tracebuf( void const *tankstart, void const *tankend )
 			if ( tkey.loc[i] == ' ' )
 				tkey.loc[i] = '-';
 		}
-
-		tkey.tlist = NULL;
 	/* Find which trace */
 		if ( (tnode = tfind(&tkey, &Root, compare_SCNL)) == NULL ) {
 		/* Not found in trace table, the whole new trace */
@@ -192,9 +198,7 @@ static int scan_tracebuf( void const *tankstart, void const *tankend )
 			}
 		/* Copy the data into the new node */
 			*tnode = tkey;
-			tnode->ntbuf   = 0;
-			tnode->maxtbuf = MAX_NUM_TBUF;
-			tnode->tlist   = (TBUF *)calloc(tnode->maxtbuf, sizeof(TBUF));
+			tnode->tlist = (TBUF *)calloc(tnode->maxtbuf, sizeof(TBUF));
 		/* Insert the trace information into binary tree */
 			if ( tsearch(tnode, &Root, compare_SCNL) == NULL ) {
 				fprintf(stderr, "%s Error insert trace into binary tree!\n", progbar_now());
@@ -218,25 +222,27 @@ static int scan_tracebuf( void const *tankstart, void const *tankend )
 	/* Keep track the total bytes we have read, and move the pointer to the next header */
 		tankbyte += tnode->tlist[ntbuf].size;
 	/* Skip over data samples */
-		if( tnode->tlist[ntbuf].size > MAX_TRACEBUF_SIZ ) {
+		if ( tnode->tlist[ntbuf].size > MAX_TRACEBUF_SIZ ) {
 			fprintf(
 				stderr, "%s *** tracebuf[%ld] too large, maximum[%d] ***\n",
 				progbar_now(), tnode->tlist[ntbuf].size, MAX_TRACEBUF_SIZ
 			);
 			continue;
 		}
-	/* Now check to see if we store this packet at all */
-	/* Only track this tracebuf if swap_wavemsg2_makelocal() SUCCEEDED */
+	/*
+	 * Now checking to see if we store this packet at all,
+	 * Only track this tracebuf if swap_wavemsg2_makelocal() SUCCEEDED
+	 */
 		if ( rc == 0 )
 			tnode->ntbuf++;
 	/* Allocate more space if necessary */
 		if ( tnode->ntbuf >= tnode->maxtbuf ) {
 			tnode->maxtbuf <<= 1;
-			tnode->tlist = realloc(tnode->tlist, tnode->maxtbuf*sizeof(TBUF));
+			tnode->tlist = realloc(tnode->tlist, tnode->maxtbuf * sizeof(TBUF));
 			if ( tnode->tlist == NULL ) {
 				fprintf(
 					stderr, "%s *** Could not realloc list to %ld bytes ***\n",
-					progbar_now(), tnode->maxtbuf*sizeof(TBUF)
+					progbar_now(), tnode->maxtbuf * sizeof(TBUF)
 				);
 				return -1;
 			}
@@ -287,6 +293,8 @@ static void tree2list( const void *nodep, const VISIT which, const int depth )
 		TraceList[nlist++] = tnode;
 		break;
 	case preorder:
+		if ( depth == 0 )
+			nlist = 0;
 	case endorder:
 		break;
 	}
@@ -300,7 +308,6 @@ static void tree2list( const void *nodep, const VISIT which, const int depth )
 static int proc_argv( int argc, char *argv[] )
 {
 	int   i;
-	int   result = 0;
 	char *c = NULL;
 	char  outformat[16] = { 0 };
 
@@ -328,14 +335,14 @@ static int proc_argv( int argc, char *argv[] )
 		}
 		else {
 			fprintf(stderr, "Unknown option: %s\n\n", argv[i]);
-			result = -1;
+			return -1;
 		}
 	}
 /* */
 	if ( !InputFile ) {
 		fprintf(stderr, "No input file was specified; ");
 		fprintf(stderr, "exiting with error!\n\n");
-		result = -1;
+		return -1;
 	}
 /* */
 	if ( !strlen(outformat) ) {
@@ -343,19 +350,17 @@ static int proc_argv( int argc, char *argv[] )
 	}
 /* */
 	if ( !strcmp(outformat, "SAC") ) {
-		_OutPath = sacproc_outpath_gen( InputFile, OutPath );
 		ConvFormat = CONV_FORMAT_SAC;
 	}
 	else if ( !strcmp(outformat, "MSEED") || !strcmp(outformat, "MSEED3") ) {
-		_OutPath = msproc_outpath_gen( InputFile, OutPath );
 		ConvFormat = !strcmp(outformat, "MSEED") ? CONV_FORMAT_MSEED : CONV_FORMAT_MSEED3;
 	}
 	else {
 		fprintf(stderr, "Unknown format: %s\n", outformat);
-		result = -1;
+		return -1;
 	}
 
-	return result;
+	return 0;
 }
 
 /*

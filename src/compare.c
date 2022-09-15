@@ -1,5 +1,5 @@
 #include <string.h>
-#include <tb2sac.h>
+#include <tbconvert.h>
 
 /*
  *
@@ -10,14 +10,13 @@ int compare_SCNL( const void *a, const void *b )
 	TRACE_NODE *trace_a = (TRACE_NODE *)a;
 	TRACE_NODE *trace_b = (TRACE_NODE *)b;
 
-	ret = strcmp(trace_a->sta, trace_b->sta);
-	if ( ret ) return ret;
-	ret = strcmp(trace_a->chan, trace_b->chan);
-	if ( ret ) return ret;
-	ret = strcmp(trace_a->net, trace_b->net);
-	if ( ret ) return ret;
-	ret = strcmp(trace_a->loc, trace_b->loc);
-	return ret;
+	if ( (ret = strcmp(trace_a->sta, trace_b->sta)) )
+		return ret;
+	if ( (ret = strcmp(trace_a->chan, trace_b->chan)) )
+		return ret;
+	if ( (ret = strcmp(trace_a->net, trace_b->net)) )
+		return ret;
+	return strcmp(trace_a->loc, trace_b->loc);
 }
 
 /*
