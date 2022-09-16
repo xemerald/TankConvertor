@@ -19,11 +19,11 @@ static void tree2list( const void *, const VISIT, const int );
 static int  proc_argv( int , char * [] );
 static void usage( void );
 
-static char        *InputFile     = NULL;
-static char         OutPath[128]  = { 0 };
-static char        *_OutPath      = NULL;
-static int          ConvFormat    = 0;
-static void        *Root      = NULL;         /* Root of binary tree */
+static char         OutPath[MAX_PATH_LENGTH] = { 0 };
+static char        *_OutPath = NULL;
+static char        *InputFile = NULL;
+static int          ConvFormat = 0;
+static void        *Root = NULL;         /* Root of binary tree */
 static TRACE_NODE **TraceList = NULL;         /* List for remaping */
 
 /*
@@ -84,7 +84,11 @@ int main( int argc, char *argv[] )
 		progbar_inc();
 		break;
 	case CONV_FORMAT_MSEED:
+	/* */
+		flag |= MSF_PACKVER2;
 	case CONV_FORMAT_MSEED3:
+	/* */
+		flag |= MSF_FLUSHDATA;
 	/* */
 		_OutPath = msproc_outpath_gen( InputFile, OutPath );
 	/* */
@@ -93,10 +97,6 @@ int main( int argc, char *argv[] )
 			msproc_tlist_add( msl, tankstart, TraceList[i] );
 		}
 		progbar_inc();
-	/* */
-		flag = MSF_FLUSHDATA;
-		if ( ConvFormat == CONV_FORMAT_MSEED )
-			flag |= MSF_PACKVER2;
 	/* */
 		fprintf(stdout, "%s Creating the miniSEED file %s...\n", progbar_now(), _OutPath);
 		mstl3_writemseed(msl, _OutPath, 1, 4096, DE_STEIM2, flag, 0);
@@ -323,12 +323,12 @@ static int proc_argv( int argc, char *argv[] )
 			exit(0);
 		}
 		else if ( !strcmp(argv[i], "-f") ) {
-			strcpy(outformat, argv[++i]);
+			strncpy(outformat, argv[++i], sizeof(outformat) - 1);
 			for ( c = outformat; *c; c++  )
 				*c = toupper(*c);
 		}
 		else if ( !strcmp(argv[i], "-o") ) {
-			strcpy(OutPath, argv[++i]);
+			strncpy(OutPath, argv[++i], sizeof(OutPath) - 1);
 		}
 		else if ( i == argc - 1 ) {
 			InputFile = argv[i];
@@ -368,7 +368,7 @@ static int proc_argv( int argc, char *argv[] )
  */
 static void usage( void )
 {
-	fprintf(stdout, "%s\n", PROG_NAME);
+	fprintf(stdout, "\n%s\n", PROG_NAME);
 	fprintf(stdout, "version: %s\n", VERSION);
 	fprintf(stdout, "author:  %s\n", AUTHOR);
 	fprintf(stdout, "***************************\n");

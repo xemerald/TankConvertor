@@ -14,22 +14,23 @@
  */
 char *msproc_outpath_gen( const char *inputfile, const char *outpath )
 {
-	static char result[128];
-	int         i;
+	static char result[MAX_PATH_LENGTH] = { 0 };
+	char       *cptr = NULL;
 	struct stat fs;
 
 /* Create the output directory */
 	if ( !outpath || !strlen(outpath) ) {
-		sprintf(result, "%s", inputfile);
 	/* Move the index to the head of real filename, just skip the path */
-		if ( strrchr(result, '/') != NULL )
-			i = strrchr(result, '/') - result;
+		if ( (cptr = strrchr(inputfile, '/')) == NULL )
+			cptr = (char *)inputfile;
 		else
-			i = 0;
+			cptr++;
+	/* */
+		sprintf(result, "./%s", cptr);
 	/* Replace the '.' in the file name to '_' */
-		for ( ; i < (int)strlen(result); i++ )
-			if ( result[i] == '.' )
-				result[i] = '_';
+		for ( cptr = result + 2; *cptr; cptr++ )
+			if ( *cptr == '.' )
+				*cptr = '_';
 		strcat(result, ".mseed");
 	}
 	else {
@@ -98,8 +99,8 @@ int msproc_tlist_add( MS3TraceList *msl, void const *tankstart, TRACE_NODE *tnod
 		msr->samplecnt   = trh2->nsamp;
 		msr->datasamples = trh2 + 1;
 	/* */
-		byte_order       = trh2->datatype[0];         /* Byte order of this TYPE_TRACEBUF2 msg */
-		byte_per_sample  = atoi(&trh2->datatype[1]);  /* For TYPE_TRACEBUF2 msg                */
+		byte_order       = trh2->datatype[0];
+		byte_per_sample  = atoi(&trh2->datatype[1]);
 	/* Starttime is set for new packet; endtime is still set for old packet */
 		if ( lendtime + (2.0 / trh2->samprate) < trh2->starttime ) {
 			nfill = (int)((float)trh2->samprate * (float)(trh2->starttime - lendtime));

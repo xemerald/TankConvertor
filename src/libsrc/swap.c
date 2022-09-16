@@ -4,12 +4,6 @@
  *  Byte swapping functions
  */
 
-/* Make sure one of the platforms is defined properly... */
-#ifndef _INTEL
-	#ifndef _SPARC
-		#warning _INTEL and _SPARC are both undefined
-	#endif
-#endif
 /* */
 #include <stdio.h>
 #include <stdlib.h>
@@ -21,6 +15,10 @@
 
 /* */
 static int makelocal_wavemsg_ver( TRACE2X_HEADER *, char );
+static int probe_host_byteorder( void );
+
+/* */
+static int HostByteOrder = BYTE_ORDER_UNDEFINE;
 
 /*
  * swap_uint16: Byte swap 2-byte unsigned integer
@@ -66,7 +64,7 @@ void swap_uint32( void *data )
 /*
  * swap_uint64: Byte swap 8-byte unsigned integer
  */
-void swap_uint64( _UNALIGNED void *data )
+void swap_uint64( void *data )
 {
 	uint8_t temp;
 	union {
@@ -95,7 +93,6 @@ void swap_uint64( _UNALIGNED void *data )
 *       Byte-swap a universal TYPE_TRACEBUF message in place.       *
 *       Changes the 'datatype' field in the message header          *
 *       Returns -1 if unknown data type.                            *
-*       Returns -1 if _SPARC or _INTEL not defined.                 *
 *       Returns -2 if checksumish calculation of header fails.      *
 *       Elsewise (SUCCESS) returns 0.                               *
 *********************************************************************/
@@ -108,7 +105,6 @@ int swap_wavemsg_makelocal( TRACE_HEADER *wvmsg )
 *       Byte-swap a universal TYPE_TRACEBUF2 message in place.      *
 *       Changes the 'datatype' field in the message header          *
 *       Returns -1 if unknown data type.                            *
-*       Returns -1 if _SPARC or _INTEL not defined.                 *
 *       Returns -1 if more than max number of samples for tbuf      *
 *	 size allowed  2000 or 1000 depending on data type          *
 *       Returns -2 if checksumish calculation of header fails.      *
@@ -123,7 +119,6 @@ int swap_wavemsg2_makelocal( TRACE2_HEADER *wvmsg )
 *       Byte-swap a universal TYPE_TRACEBUF2X message in place.      *
 *       Changes the 'datatype' field in the message header          *
 *       Returns -1 if unknown data type.                            *
-*       Returns -1 if _SPARC or _INTEL not defined.                 *
 *       Returns -1 if more than max number of samples for tbuf      *
 *	 size allowed  2000 or 1000 depending on data type          *
 *       Returns -2 if checksumish calculation of header fails.      *
@@ -143,24 +138,10 @@ static int makelocal_wavemsg_ver( TRACE2X_HEADER *wvmsg, char version )
 /* */
 	int      data_size  = 0;   /* flag telling us how many bytes in the data */
 	char     byte_order = ' ';
-#if defined( _SPARC )
-	char     loc_ibyte_order = 's';
-	char     loc_fbyte_order = 't';
-	char     ops_ibyte_order = 'i';
-	char     ops_fbyte_order = 'f';
-#elif defined( _INTEL )
-	char     loc_ibyte_order = 'i';
-	char     loc_fbyte_order = 'f';
-	char     ops_ibyte_order = 's';
-	char     ops_fbyte_order = 't';
-#else
-	char     loc_ibyte_order = ' ';
-	char     loc_fbyte_order = ' ';
-	char     ops_ibyte_order = ' ';
-	char     ops_fbyte_order = ' ';
-	printf("%s warning: _INTEL and _SPARC are both undefined.", __func__);
-	return -1;
-#endif
+	char     loc_ibyte_order;
+	char     loc_fbyte_order;
+	char     ops_ibyte_order;
+	char     ops_fbyte_order;
 /* */
 	int32_t *int_ptr;
 	int16_t *short_ptr;
@@ -175,6 +156,30 @@ static int makelocal_wavemsg_ver( TRACE2X_HEADER *wvmsg, char version )
 
 	double _endtime;
 	double fudge;
+
+/* */
+	switch ( HostByteOrder ) {
+	case BYTE_ORDER_UNDEFINE:
+		HostByteOrder = probe_host_byteorder();
+	default:
+	/* */
+		if ( HostByteOrder == BYTE_ORDER_BIG_ENDIAN ) {
+			loc_ibyte_order = 's';
+			loc_fbyte_order = 't';
+			ops_ibyte_order = 'i';
+			ops_fbyte_order = 'f';
+		}
+		else if ( HostByteOrder == BYTE_ORDER_LITTLE_ENDIAN ) {
+			loc_ibyte_order = 'i';
+			loc_fbyte_order = 'f';
+			ops_ibyte_order = 's';
+			ops_fbyte_order = 't';
+		}
+		else {
+			return -1;
+		}
+		break;
+	}
 
 /* See what sort of data it carries */
 	if ( wvmsg->datatype[0] == 's' && (wvmsg->datatype[1] == '2' || wvmsg->datatype[1] == '4') )
@@ -289,4 +294,14 @@ static int makelocal_wavemsg_ver( TRACE2X_HEADER *wvmsg, char version )
 	}
 
 	return 0;
+}
+
+/*
+ *
+ */
+static int probe_host_byteorder( void )
+{
+	const uint16_t probe = 256;
+
+	return *(const uint8_t *)&probe ? BYTE_ORDER_BIG_ENDIAN : BYTE_ORDER_LITTLE_ENDIAN;
 }

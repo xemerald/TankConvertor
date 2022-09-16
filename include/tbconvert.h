@@ -8,7 +8,8 @@
 #define VERSION         "1.0.0 - 2022-09-15"
 #define AUTHOR          "Benjamin Ming Yang"
 /* */
-#define MAX_NUM_TBUF    4096
+#define MAX_NUM_TBUF     4096
+#define MAX_PATH_LENGTH  256
 /* */
 #define CONV_FORMAT_SAC     0
 #define CONV_FORMAT_MSEED   1

@@ -2,11 +2,10 @@
 
 #include <trace_buf.h>
 
-#ifdef WIN64  /* use keyword to address alignment issues with 64-bit Windows */
-#define _UNALIGNED __unaligned
-#else
-#define _UNALIGNED
-#endif
+/* */
+#define BYTE_ORDER_UNDEFINE      -1
+#define BYTE_ORDER_LITTLE_ENDIAN  0
+#define BYTE_ORDER_BIG_ENDIAN     1
 
 /* include file for swap.c: handy routines for swapping earthwormy things */
 void swap_uint16( void * );
@@ -16,7 +15,7 @@ void swap_uint32( void * );
 #define swap_int32( data ) swap_uint32( data )
 #define swap_int( data ) swap_uint32( data )
 #define swap_float( data ) swap_uint32( data )
-void swap_uint64( _UNALIGNED void * );
+void swap_uint64( void * );
 #define swap_int64( data ) swap_uint64( data )
 #define swap_double( data ) swap_uint64( data )
 

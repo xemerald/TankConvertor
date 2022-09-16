@@ -1,9 +1,10 @@
 #
 #
 #
-export BYTE_ORDER = _INTEL
 export CC = /usr/bin/gcc
-
+export MAIN_BIN_NAME = tbconvert
+INSTALL_DIR = /usr/local/bin
+#
 usage:
 	@echo "Usage: make normal or make centos"
 
@@ -24,14 +25,21 @@ libs: echo_msg_libraries
 
 #
 #
+install:
+	@echo Installing $(MAIN_BIN_NAME) to $(INSTALL_DIR)...
+	@cp ./$(MAIN_BIN_NAME) $(INSTALL_DIR)
+	@echo Finish installing of $(MAIN_BIN_NAME).
+
+#
+#
 echo_msg_normal:
-	@echo "--------------------------------";
-	@echo "-      Making main tb2sac      -";
-	@echo "--------------------------------";
+	@echo "-----------------------------------";
+	@echo "-      Making main tbconvert      -";
+	@echo "-----------------------------------";
 echo_msg_centos:
-	@echo "---------------------------------";
-	@echo "- Making main tb2sac for centos -";
-	@echo "---------------------------------";
+	@echo "------------------------------------";
+	@echo "- Making main tbconvert for centos -";
+	@echo "------------------------------------";
 echo_msg_libraries:
 	@echo "----------------------------------";
 	@echo "-        Making libraries        -";

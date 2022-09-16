@@ -15,7 +15,7 @@ char *progbar_now( void )
 	static char progstr[16] = { 0 };
 
 	if ( TotalDuty )
-		sprintf(progstr, "[%6.2f%%]", ((float)CompDuty/TotalDuty)*100.0);
+		sprintf(progstr, "[%6.2f%%]", ((float)CompDuty / TotalDuty) * 100.0);
 	else
 		sprintf(progstr, "[-------]");
 

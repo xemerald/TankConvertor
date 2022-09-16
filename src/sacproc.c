@@ -31,22 +31,23 @@ static int  write_sac_file( const uint8_t *, const char * );
  */
 char *sacproc_outpath_gen( const char *inputfile, const char *outpath )
 {
-	static char result[128];
-	int         i;
+	static char result[MAX_PATH_LENGTH] = { 0 };
+	char       *cptr = NULL;
 	struct stat fs;
 
 /* Create the output directory */
 	if ( !outpath || !strlen(outpath) ) {
-		sprintf(result, "%s_SAC", inputfile);
 	/* Move the index to the head of real filename, just skip the path */
-		if ( strrchr(result, '/') != NULL )
-			i = strrchr(result, '/') - result;
+		if ( (cptr = strrchr(inputfile, '/')) == NULL )
+			cptr = (char *)inputfile;
 		else
-			i = 0;
+			cptr++;
+	/* */
+		sprintf(result, "./%s_SAC", cptr);
 	/* Replace the '.' in the file name to '_' */
-		for ( ; i < (int)strlen(result); i++ )
-			if ( result[i] == '.' )
-				result[i] = '_';
+		for ( cptr = result + 2; *cptr; cptr++ )
+			if ( *cptr == '.' )
+				*cptr = '_';
 	}
 	else {
 		strcpy(result, outpath);
@@ -54,7 +55,6 @@ char *sacproc_outpath_gen( const char *inputfile, const char *outpath )
 /* Check if the directory is existing or not */
 	if ( stat(result, &fs) == -1 )
 		mkdir(result, 0775);
-
 	return result;
 }
 
@@ -64,24 +64,24 @@ char *sacproc_outpath_gen( const char *inputfile, const char *outpath )
 int sacproc_trace_output( const char *outpath, void const *tankstart, TRACE_NODE *tnode )
 {
 	int    i, j;
-	int    gapcount  = 0;
+	int    gapcount = 0;
 	int    nfill_max = 0;
 	int    nsamp_trace;
 	double starttime, endtime; /* times for current scnl         */
 	double samprate = 1.0;
+	char   sacfile[MAX_PATH_LENGTH] = { 0 };
 
 	TRACE2_HEADER  *trh2     = NULL;  /* Tracebuf message read from file      */
 	uint8_t        *tankbyte = NULL;
 	void           *dataptr  = NULL;
 	void           *dataend  = NULL;
 
-	uint8_t        *outbuf       = NULL;
-	uint8_t        *outbufend    = NULL;
-	size_t          buffersiz    = sizeof(struct SAChead) + tnode->maxtbuf * 100 * sizeof(SACWORD);
-	char            sacfile[256] = { 0 };
-	struct SAChead *sachead      = NULL;
-	SACWORD        *seis         = NULL;
-	SACWORD         fill         = (SACWORD)SACUNDEF;
+	uint8_t        *outbuf    = NULL;
+	uint8_t        *outbufend = NULL;
+	size_t          buffersiz = sizeof(struct SAChead) + tnode->maxtbuf * 100 * sizeof(SACWORD);
+	struct SAChead *sachead   = NULL;
+	SACWORD        *seis      = NULL;
+	SACWORD         fill      = (SACWORD)SACUNDEF;
 
 	fprintf(
 		stdout, "%s Extracting %s.%s.%s.%s to SAC file...\n",
